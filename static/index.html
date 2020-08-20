@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="xterm.css">
+    <script src="xterm.js"></script>
+    <style>
+        html, body {
+            padding: 0;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+<div style="width: 860px;  margin: 200px auto auto; padding: 10px;background: black">
+
+    <div id="terminal"></div>
+</div>
+<script>
+    var term = new Terminal();
+    term.open(document.getElementById('terminal'));
+
+    var ws = new WebSocket("ws://" + location.host + "/cmd");
+    term.onKey(function (data) {
+        if(data.domEvent.keyCode == 13){
+            term.write("\r\n");
+            ws.send("\r\n");
+        }
+    });
+    term.onData(function (data) {
+        term.write(data);
+        ws.send(data);
+    });
+    ws.onmessage = function (e) {
+        console.log(e);
+        term.write(e.data)
+    }
+</script>
+</body>
+</html>
