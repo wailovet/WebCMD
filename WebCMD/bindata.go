@@ -5,7 +5,7 @@
 // static/xterm.js
 // DO NOT EDIT!
 
-package main
+package WebCMD
 
 import (
 	"bytes"
