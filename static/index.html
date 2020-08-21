@@ -12,29 +12,100 @@
     </style>
 </head>
 <body>
-<div style="width: 860px;  margin: 200px auto auto; padding: 10px;background: black">
+<div style="width: 720px;  margin: 200px auto 30px;display:flex">
+    <input type="text" placeholder="目录" style="width: 100%;" id="dir">
 
-    <div id="terminal"></div>
+</div>
+<div style="width: 720px;  margin:  auto; padding: 10px;background: black">
+    <div id="terminal" style="width: 100%"></div>
 </div>
 <script>
+    var historys = [];
+    var history_index = 0;
+
+
+    var datas = [];
+    var datas_new = [];
     var term = new Terminal();
     term.open(document.getElementById('terminal'));
+    term.write("\r\nterminal > ");
 
-    var ws = new WebSocket("ws://" + location.host + "/cmd");
     term.onKey(function (data) {
-        if(data.domEvent.keyCode == 13){
+        console.log(data);
+        console.log(JSON.stringify(data.key));
+
+
+        if (data.domEvent.keyCode == 13) {
+            historys.push(datas);
+            history_index = historys.length - 1;
+            var ws = new WebSocket("ws://" + location.host + "/cmd?dir=" + document.querySelector("#dir").value + "&s=" + datas.join(""));
+            ws.onmessage = function (e) {
+                console.log(e);
+                term.write(e.data)
+            };
+            ws.onclose = function () {
+                term.write("\r\nterminal > ");
+            };
             term.write("\r\n");
-            ws.send("\r\n");
+            datas = [];
+            return
+        }
+        if (data.domEvent.keyCode == 8) {
+            if (datas.length > 0) {
+                datas.pop();
+                term.write(String.fromCharCode(data.domEvent.keyCode));
+                term.write("\x1b[K");
+            }
+            return
+        }
+        if (data.domEvent.keyCode == 37 || data.domEvent.keyCode == 38 || data.domEvent.keyCode == 39 || data.domEvent.keyCode == 40) {
+            if (data.domEvent.keyCode == 38) {
+                //上
+                if (history_index >= 0 && historys.length > 0) {
+
+                    datas = historys[history_index];
+
+                    term.write("\x1b[1K");
+                    for (var i = 0 ;i<100;i++) term.write("\x1b[D");
+                    term.write("terminal > ");
+                    term.write(datas.join(""));
+
+                    history_index--;
+                    if (history_index < 0) {
+                        history_index = 0
+                    }
+                }
+            }
+
+            if (data.domEvent.keyCode == 40) {
+                history_index++;
+                if (history_index > historys.length - 1) {
+                    history_index = historys.length - 1;
+                    datas = datas_new
+                } else {
+
+                    datas = historys[history_index];
+                }
+
+                term.write("\x1b[1K");
+                for (var i = 0 ;i<100;i++) term.write("\x1b[D");
+                term.write("terminal > ");
+                term.write(datas.join(""));
+
+            }
+            return
+        }
+
+
+        if (data.key.length == 1 && data.key.charCodeAt(0) > 27 && data.key.charCodeAt(0) < 127) {
+
+            datas.push(data.key);
+            datas_new = datas;
+            // term.write(data.domEvent.key)
+            term.write(data.key);
         }
     });
-    term.onData(function (data) {
-        term.write(data);
-        ws.send(data);
-    });
-    ws.onmessage = function (e) {
-        console.log(e);
-        term.write(e.data)
-    }
+
 </script>
 </body>
 </html>

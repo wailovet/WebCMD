@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"golang.org/x/net/websocket"
-	"log"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 	"net/http"
 	"os/exec"
 )
@@ -12,27 +14,27 @@ func main() {
 }
 
 func StartWeb(addr string) {
-
-	http.Handle("/", http.FileServer(http.Dir("static")))
+	var dev bool
+	flag.BoolVar(&dev, "dev", false, "")
+	flag.Parse()
+	if dev {
+		http.Handle("/", http.FileServer(http.Dir("static")))
+	} else {
+		http.Handle("/", http.FileServer(assetFS()))
+	}
 
 	http.HandleFunc("/cmd", func(writer http.ResponseWriter, request *http.Request) {
-		cmd := exec.Command("powershell")
+		cmds := request.URL.Query().Get("s")
+		dir := request.URL.Query().Get("dir")
 		h := websocket.Handler(func(ws *websocket.Conn) {
 
-			cmd.Stdout = ws
-			cmd.Stderr = ws
-			cmd.Stdin = ws
+			cmd := exec.Command("cmd", "/c", cmds)
+			cmd.Dir = dir
+			gbks := transform.NewWriter(ws, simplifiedchinese.GBK.NewDecoder())
+			cmd.Stdout = gbks
+			cmd.Stderr = gbks
 
 			cmd.Run()
-
-			log.Println("start")
-			for {
-				var reply string
-				if err := websocket.Message.Receive(ws, &reply); err != nil {
-					break
-				}
-			}
-			cmd.Process.Kill()
 		})
 		h.ServeHTTP(writer, request)
 	})
